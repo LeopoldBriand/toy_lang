@@ -82,7 +82,6 @@ impl LexicalParser {
 pub fn parse(& mut self) -> Result<Vec<Token>, Box<dyn Error>> {
     let mut position: usize = 0;
     while position < self.source.len() {
-        println!("position {}, source len {}", position, self.source.len());
         match self.next_token(position) {
             Ok(inc) => position += inc,
             Err(err) => return Err(err)
