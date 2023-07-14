@@ -1,6 +1,8 @@
 use std::{env, fs};
 use std::fs::metadata;
 mod lexer;
+mod grammar;
+mod parser;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -21,8 +23,15 @@ fn main() {
                 Err(_) => panic!("Error while accessing the file")
             }
             let mut lex = lexer::LexicalParser::new(content);
-            let result = lex.parse();
-            println!("{:?}", result);
+            match lex.parse() {
+                Ok(lexicon) => {
+                    let mut parser = parser::SyntaxAnalizer::new(lexicon);
+                    parser.parse();
+                    let result = parser.ast;
+                    println!("{:?}", result);
+                },
+                Err(error) => panic!("Lexical error: {}", error.as_ref().to_string())
+            }
         },
         _ => panic!("Compiler need only one given argument")
     }
