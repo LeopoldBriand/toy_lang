@@ -1,4 +1,4 @@
-use crate::grammar::{StatementBlock, Statement, PrintStatement,Term, Expression};
+use crate::grammar::{StatementBlock, Statement, PrintStatement,Term, Expression, IfStatement};
 use crate::lexer::{Token, TokenType};
 pub struct SyntaxAnalizer {
     tokens: Vec<Token>,
@@ -71,13 +71,18 @@ impl SyntaxAnalizer {
             statements: vec![], 
             symbol_table: vec![] 
         };
-        while !self.check_token(TokenType::EndOfBlock) {
-            block.statements.push(self.parse_statement());
+        if self.check_token(TokenType::StartOfBlock){
+            self.next_token();
+            while !self.check_token(TokenType::EndOfBlock) {
+                block.statements.push(self.parse_statement());
+            }
+        } else {
+            panic!("Missing opening block");
         }
         return block;
     }
     fn parse_statement(&mut self) -> Statement {
-        // "print" (expression | string)
+        // print_statement ::= (expression) | string_literal
         if self.check_token_and_value(TokenType::Keyword, "print") {
             self.next_token();
             // Should start with brackets
@@ -114,9 +119,42 @@ impl SyntaxAnalizer {
                     }
                     
                 }
+            } else {
+                panic!("Missing opening bracket");
             }
-            
+        // if_statement ::= if (expression) statement_block else statement_block
+        } else if self.check_token_and_value(TokenType::Keyword, "if") {
+            let expression: Expression;
+            let then_statement_block: StatementBlock;
+            let mut else_statement_block: Option<StatementBlock> = None;
+            self.next_token();
+            // Should start with brackets
+            if self.check_token_and_value(TokenType::GroupDivider, "(") {
+                self.next_token();
+                expression = self.parse_expression();
+                // Check for closing bracket
+                if self.check_token_and_value(TokenType::GroupDivider, ")"){
+                    self.next_token();
+                    then_statement_block = self.parse_statement_block();
+                    if self.check_token_and_value(TokenType::Keyword, "else") {
+                        self.next_token();
+                        else_statement_block = Some(self.parse_statement_block());
+                    }
+                } else {
+                    panic!("Missing closing bracket");
+                }
+            } else {
+                panic!("Missing opening bracket");
+            }
+            return Statement::If(
+                IfStatement{
+                    expression,
+                    then_statement_block,
+                    else_statement_block,
+                }
+            );
         }
+
         panic!("Syntax Error: Statement cannot be matched: {:?}", self.current_token)
     }
     fn parse_expression(&mut self) -> Expression {

@@ -17,9 +17,9 @@ pub enum PrintStatement {
 }
 #[derive(Debug, Clone)]
 pub struct IfStatement {
-    expression: Expression,
-    then_statement_block: StatementBlock,
-    else_statement_block: StatementBlock,
+    pub expression: Expression,
+    pub then_statement_block: StatementBlock,
+    pub else_statement_block: Option<StatementBlock>,
 }
 #[derive(Debug, Clone)]
 pub struct AssignmentStatement {
