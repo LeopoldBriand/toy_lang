@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::grammar::{
-    AssignmentStatement, Expression, Identifier, IfStatement, PrintStatement, Statement,
-    StatementBlock, Term,
+    AssignmentStatement, Expression, Identifier, IfStatement, Operation, Operator, PrintStatement,
+    Statement, StatementBlock, Term,
 };
 use crate::lexer::{Token, TokenType};
 pub struct SyntaxAnalizer {
@@ -15,17 +15,21 @@ pub struct SyntaxAnalizer {
 impl SyntaxAnalizer {
     pub fn new(tokens: Vec<Token>) -> Self {
         let mut analizer = SyntaxAnalizer {
-            tokens,
+            tokens: tokens.clone(),
             ast: StatementBlock {
                 statements: vec![],
                 symbol_table: HashMap::new(),
             },
             current_token: None,
             peek_token: None,
-            position: 0,
+            position: 1,
         };
-        analizer.next_token();
-        analizer.next_token();
+        if tokens.len() > 2 {
+            analizer.current_token = Some(tokens[0].clone());
+            analizer.peek_token = Some(tokens[1].clone());
+        } else {
+            panic!("Empty file");
+        }
         analizer
     }
     pub fn parse(&mut self) {
@@ -110,7 +114,7 @@ impl SyntaxAnalizer {
                     }
                 } else {
                     // It's an expression
-                    let expression = self.parse_expression();
+                    let expression = self.parse_expression(block);
                     // Check for closing bracket
                     if self.check_token_and_value(TokenType::GroupDivider, ")") {
                         self.next_token();
@@ -136,7 +140,7 @@ impl SyntaxAnalizer {
             // Should start with brackets
             if self.check_token_and_value(TokenType::GroupDivider, "(") {
                 self.next_token();
-                expression = self.parse_expression();
+                expression = self.parse_expression(block);
                 // Check for closing bracket
                 if self.check_token_and_value(TokenType::GroupDivider, ")") {
                     self.next_token();
@@ -168,7 +172,7 @@ impl SyntaxAnalizer {
                     let expression: Expression;
                     if self.check_token_and_value(TokenType::Operator, "=") {
                         self.next_token();
-                        expression = self.parse_expression();
+                        expression = self.parse_expression(block);
                         if self.check_token(TokenType::EndOfStatement) {
                             self.next_token();
                         } else {
@@ -200,7 +204,7 @@ impl SyntaxAnalizer {
                 let expression: Expression;
                 if self.check_token_and_value(TokenType::Operator, "=") {
                     self.next_token();
-                    expression = self.parse_expression();
+                    expression = self.parse_expression(block);
                     if self.check_token(TokenType::EndOfStatement) {
                         self.next_token();
                     } else {
@@ -222,8 +226,36 @@ impl SyntaxAnalizer {
             self.current_token
         )
     }
-    fn parse_expression(&mut self) -> Expression {
-        todo!()
+    fn parse_expression(&mut self, block: &mut StatementBlock) -> Expression {
+        if self.check_peek(TokenType::Operator) {
+            let value = self.get_token_value(self.peek_token.clone());
+            let operator: Operator = self.parse_operator(value);
+            let left_expression = self.parse_term(block);
+            self.next_token();
+            let right_expresion = self.parse_expression(block);
+            return Expression::Operation(Box::new(Operation {
+                left: Expression::Term(left_expression),
+                operator,
+                right: right_expresion,
+            }));
+        } else {
+            return Expression::Term(self.parse_term(block));
+        }
+    }
+    fn parse_operator(&mut self, value: String) -> Operator {
+        match value.as_str() {
+            "+" => Operator::Plus,
+            "-" => Operator::Minus,
+            "*" => Operator::Multiplication,
+            "/" => Operator::Division,
+            "==" => Operator::Equal,
+            "!=" => Operator::NotEqual,
+            "<=" => Operator::InfOrEqual,
+            ">=" => Operator::SupOrEqual,
+            ">" => Operator::Superior,
+            "<" => Operator::Inferior,
+            _ => panic!("Unknown operator"),
+        }
     }
     fn parse_term(&mut self, block: &mut StatementBlock) -> Term {
         if self.check_token(TokenType::Identifier) {

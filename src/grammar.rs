@@ -50,9 +50,9 @@ pub enum Expression {
 }
 #[derive(Debug, Clone)]
 pub struct Operation {
-    left: Expression,
-    operator: Operator,
-    right: Expression,
+    pub left: Expression,
+    pub operator: Operator,
+    pub right: Expression,
 }
 #[derive(Debug, Clone)]
 pub enum Term {
