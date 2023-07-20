@@ -225,4 +225,33 @@ impl SyntaxAnalizer {
     fn parse_expression(&mut self) -> Expression {
         todo!()
     }
+    fn parse_term(&mut self, block: &mut StatementBlock) -> Term {
+        if self.check_token(TokenType::Identifier) {
+            let identifier_value = self.current_token.clone().unwrap().value;
+            self.next_token();
+            if block.symbol_table.contains_key(&identifier_value) {
+                let identifier = Identifier {};
+                return Term::Identifier(identifier);
+            } else {
+                panic!("Identifier {} not declared", identifier_value);
+            }
+        } else if self.check_token(TokenType::Numeric) {
+            let value = self
+                .get_token_value(self.current_token.clone())
+                .parse::<i64>();
+            self.next_token();
+            match value {
+                Ok(integer) => return Term::Integer(integer),
+                Err(_) => panic!("Parsing error"),
+            }
+        } else if self.check_token(TokenType::Text) {
+            let text = self.get_token_value(self.current_token.clone());
+            self.next_token();
+            return Term::String(text);
+        }
+        panic!(
+            "Syntax Error: Term cannot be matched: {:?}",
+            self.current_token
+        )
+    }
 }
