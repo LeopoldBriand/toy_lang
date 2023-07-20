@@ -1,4 +1,9 @@
-use crate::grammar::{StatementBlock, Statement, PrintStatement,Term, Expression, IfStatement};
+use std::collections::HashMap;
+
+use crate::grammar::{
+    AssignmentStatement, Expression, Identifier, IfStatement, PrintStatement, Statement,
+    StatementBlock, Term,
+};
 use crate::lexer::{Token, TokenType};
 pub struct SyntaxAnalizer {
     tokens: Vec<Token>,
@@ -9,11 +14,11 @@ pub struct SyntaxAnalizer {
 }
 impl SyntaxAnalizer {
     pub fn new(tokens: Vec<Token>) -> Self {
-        let mut analizer =  SyntaxAnalizer{
+        let mut analizer = SyntaxAnalizer {
             tokens,
             ast: StatementBlock {
                 statements: vec![],
-                symbol_table: vec![],
+                symbol_table: HashMap::new(),
             },
             current_token: None,
             peek_token: None,
@@ -22,14 +27,13 @@ impl SyntaxAnalizer {
         analizer.next_token();
         analizer.next_token();
         analizer
-        
     }
-    pub fn parse(&mut self){
+    pub fn parse(&mut self) {
         self.ast = self.parse_statement_block();
     }
     fn check_token(&mut self, token_type: TokenType) -> bool {
         match self.current_token.clone() {
-            Some(token) => token.token_type == token_type ,
+            Some(token) => token.token_type == token_type,
             None => false,
         }
     }
@@ -57,7 +61,7 @@ impl SyntaxAnalizer {
             None => panic!("No token to parse"),
         }
     }
-    fn next_token(&mut self){
+    fn next_token(&mut self) {
         self.position += 1;
         self.current_token = self.peek_token.clone();
         if self.position < self.tokens.len() {
@@ -66,22 +70,23 @@ impl SyntaxAnalizer {
             self.peek_token = None;
         }
     }
-    fn parse_statement_block(&mut self) -> StatementBlock{
-        let mut block = StatementBlock { 
-            statements: vec![], 
-            symbol_table: vec![] 
+    fn parse_statement_block(&mut self) -> StatementBlock {
+        let mut block = StatementBlock {
+            statements: vec![],
+            symbol_table: HashMap::new(),
         };
-        if self.check_token(TokenType::StartOfBlock){
+        if self.check_token(TokenType::StartOfBlock) {
             self.next_token();
             while !self.check_token(TokenType::EndOfBlock) {
-                block.statements.push(self.parse_statement());
+                let statement = self.parse_statement(&mut block);
+                block.statements.push(statement);
             }
         } else {
             panic!("Missing opening block");
         }
         return block;
     }
-    fn parse_statement(&mut self) -> Statement {
+    fn parse_statement(&mut self, block: &mut StatementBlock) -> Statement {
         // print_statement ::= (expression) | string_literal
         if self.check_token_and_value(TokenType::Keyword, "print") {
             self.next_token();
@@ -89,35 +94,35 @@ impl SyntaxAnalizer {
             if self.check_token_and_value(TokenType::GroupDivider, "(") {
                 self.next_token();
                 // If there only string, save print statement
-                if self.check_token(TokenType::Text) && self.check_peek_and_value(TokenType::GroupDivider, ")"){
+                if self.check_token(TokenType::Text)
+                    && self.check_peek_and_value(TokenType::GroupDivider, ")")
+                {
                     let text = self.current_token.clone();
                     self.next_token();
                     self.next_token();
-                    if self.check_token(TokenType::EndOfStatement){
+                    if self.check_token(TokenType::EndOfStatement) {
                         self.next_token();
-                        return Statement::Print(
-                            PrintStatement::Term(Term::String(self.get_token_value(text)))
-                        );
+                        return Statement::Print(PrintStatement::Term(Term::String(
+                            self.get_token_value(text),
+                        )));
                     } else {
                         panic!("Missing end of statement")
                     }
-                } else { // It's an expression
+                } else {
+                    // It's an expression
                     let expression = self.parse_expression();
                     // Check for closing bracket
-                    if self.check_token_and_value(TokenType::GroupDivider, ")"){
+                    if self.check_token_and_value(TokenType::GroupDivider, ")") {
                         self.next_token();
-                        if self.check_token(TokenType::EndOfStatement){
+                        if self.check_token(TokenType::EndOfStatement) {
                             self.next_token();
-                            return Statement::Print(
-                                PrintStatement::Expression(expression)
-                            );
+                            return Statement::Print(PrintStatement::Expression(expression));
                         } else {
                             panic!("Missing end of statement")
                         }
                     } else {
                         panic!("Missing closing bracket");
                     }
-                    
                 }
             } else {
                 panic!("Missing opening bracket");
@@ -133,7 +138,7 @@ impl SyntaxAnalizer {
                 self.next_token();
                 expression = self.parse_expression();
                 // Check for closing bracket
-                if self.check_token_and_value(TokenType::GroupDivider, ")"){
+                if self.check_token_and_value(TokenType::GroupDivider, ")") {
                     self.next_token();
                     then_statement_block = self.parse_statement_block();
                     if self.check_token_and_value(TokenType::Keyword, "else") {
@@ -146,19 +151,78 @@ impl SyntaxAnalizer {
             } else {
                 panic!("Missing opening bracket");
             }
-            return Statement::If(
-                IfStatement{
-                    expression,
-                    then_statement_block,
-                    else_statement_block,
+            return Statement::If(IfStatement {
+                expression,
+                then_statement_block,
+                else_statement_block,
+            });
+        // declaration_statement ::= var identifier = expression
+        } else if self.check_token_and_value(TokenType::Keyword, "var") {
+            self.next_token();
+            if self.check_token(TokenType::Identifier) {
+                // Check if identifier already exist in statement block
+                let identifier_value = self.current_token.clone().unwrap().value;
+                self.next_token();
+                if !block.symbol_table.contains_key(&identifier_value) {
+                    let identifier = Identifier {};
+                    let expression: Expression;
+                    if self.check_token_and_value(TokenType::Operator, "=") {
+                        self.next_token();
+                        expression = self.parse_expression();
+                        if self.check_token(TokenType::EndOfStatement) {
+                            self.next_token();
+                        } else {
+                            panic!("Missing end of statement")
+                        }
+                    } else {
+                        panic!("Assignement without '=' sign");
+                    }
+                    block
+                        .symbol_table
+                        .insert(identifier_value, identifier.clone());
+                    return Statement::Assignment(AssignmentStatement {
+                        expression,
+                        identifier,
+                    });
+                } else {
+                    panic!("Identifier {} already used", identifier_value)
                 }
-            );
+            } else {
+                panic!("Identifier needed after var keyword");
+            }
+        // assignment_statement ::= identifier = expression
+        } else if self.check_token(TokenType::Identifier) {
+            // Check if identifier already exist in statement block
+            let identifier_value = self.current_token.clone().unwrap().value;
+            self.next_token();
+            if block.symbol_table.contains_key(&identifier_value) {
+                let identifier = Identifier {};
+                let expression: Expression;
+                if self.check_token_and_value(TokenType::Operator, "=") {
+                    self.next_token();
+                    expression = self.parse_expression();
+                    if self.check_token(TokenType::EndOfStatement) {
+                        self.next_token();
+                    } else {
+                        panic!("Missing end of statement")
+                    }
+                } else {
+                    panic!("Assignement without '=' sign");
+                }
+                return Statement::Assignment(AssignmentStatement {
+                    expression,
+                    identifier,
+                });
+            } else {
+                panic!("Identifier {} not declared", identifier_value)
+            }
         }
-
-        panic!("Syntax Error: Statement cannot be matched: {:?}", self.current_token)
+        panic!(
+            "Syntax Error: Statement cannot be matched: {:?}",
+            self.current_token
+        )
     }
     fn parse_expression(&mut self) -> Expression {
         todo!()
     }
-    
 }

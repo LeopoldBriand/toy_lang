@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Clone)]
 pub struct StatementBlock {
     pub statements: Vec<Statement>,
-    pub symbol_table: Vec<Identifier>,
+    pub symbol_table: HashMap<String, Identifier>,
 }
 
 #[derive(Debug, Clone)]
@@ -13,7 +15,7 @@ pub enum Statement {
 #[derive(Debug, Clone)]
 pub enum PrintStatement {
     Term(Term),
-    Expression(Expression)
+    Expression(Expression),
 }
 #[derive(Debug, Clone)]
 pub struct IfStatement {
@@ -23,8 +25,8 @@ pub struct IfStatement {
 }
 #[derive(Debug, Clone)]
 pub struct AssignmentStatement {
-    identifier: Identifier,
-    expression: Expression,
+    pub identifier: Identifier,
+    pub expression: Expression,
 }
 #[derive(Debug, Clone)]
 pub enum Operator {
@@ -37,20 +39,20 @@ pub enum Operator {
     Inferior,
     InfOrEqual,
     Superior,
-    SupOrEqual
+    SupOrEqual,
 }
 #[derive(Debug, Clone)]
 pub struct Identifier {}
 #[derive(Debug, Clone)]
 pub enum Expression {
     Operation(Box<Operation>),
-    Term(Term)
+    Term(Term),
 }
 #[derive(Debug, Clone)]
 pub struct Operation {
     left: Expression,
     operator: Operator,
-    right: Expression
+    right: Expression,
 }
 #[derive(Debug, Clone)]
 pub enum Term {
