@@ -42,7 +42,15 @@ pub enum Operator {
     SupOrEqual,
 }
 #[derive(Debug, Clone)]
-pub struct Identifier {}
+pub struct Identifier {
+    pub name: String,
+    pub value: Option<Value>,
+}
+#[derive(Debug, Clone)]
+pub enum Value {
+    Integer(i64),
+    String(String),
+}
 #[derive(Debug, Clone)]
 pub enum Expression {
     Operation(Box<Operation>),

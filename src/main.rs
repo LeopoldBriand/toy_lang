@@ -2,12 +2,17 @@ use std::fs;
 mod grammar;
 mod lexer;
 mod parser;
+mod interpreter;
 
 use clap::Parser;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
+    /// Run interpreter instead of compiler
+    #[arg(short, long)]
+    interpreter: bool,
+    /// Path of toy lang file to compile or interpret
     path: Option<String>,
 }
 
@@ -33,7 +38,11 @@ fn main() {
             let mut parser = parser::SyntaxAnalizer::new(lexicon);
             parser.parse();
             let result = parser.ast;
-            println!("{:?}", result);
+            if cli.interpreter {
+                interpreter::interpret(result);
+            } else {
+                println!("{:?}", result);
+            }
         }
         Err(error) => panic!("Lexical error: {}", error.as_ref().to_string()),
     }

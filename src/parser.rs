@@ -168,7 +168,7 @@ impl SyntaxAnalizer {
                 let identifier_value = self.current_token.clone().unwrap().value;
                 self.next_token();
                 if !block.symbol_table.contains_key(&identifier_value) {
-                    let identifier = Identifier {};
+                    let identifier = Identifier {name: identifier_value.clone(), value: None};
                     let expression: Expression;
                     if self.check_token_and_value(TokenType::Operator, "=") {
                         self.next_token();
@@ -200,7 +200,7 @@ impl SyntaxAnalizer {
             let identifier_value = self.current_token.clone().unwrap().value;
             self.next_token();
             if block.symbol_table.contains_key(&identifier_value) {
-                let identifier = Identifier {};
+                let identifier = Identifier {name: identifier_value, value: None};
                 let expression: Expression;
                 if self.check_token_and_value(TokenType::Operator, "=") {
                     self.next_token();
@@ -262,7 +262,7 @@ impl SyntaxAnalizer {
             let identifier_value = self.current_token.clone().unwrap().value;
             self.next_token();
             if block.symbol_table.contains_key(&identifier_value) {
-                let identifier = Identifier {};
+                let identifier = Identifier {name: identifier_value, value: None};
                 return Term::Identifier(identifier);
             } else {
                 panic!("Identifier {} not declared", identifier_value);
