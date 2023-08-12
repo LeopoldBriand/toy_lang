@@ -30,9 +30,9 @@ impl TokenType {
             TokenType::StartOfBlock => "(\\{)",
             TokenType::EndOfBlock => "(\\})",
             TokenType::EndOfStatement => "(;)",
-            TokenType::Logical => "true|false",
             TokenType::Numeric => "[0-9]+",
             TokenType::Text => "\'([^\']*)\'",
+            TokenType::Logical => "(true|false)",
             TokenType::Identifier => "[a-zA-Z_]+[a-zA-Z0-9_]*",
             TokenType::Operator => "(\\+|\\-|>|<|\\={1,2}|\\!|\\:{2})",
         }
@@ -46,9 +46,9 @@ impl TokenType {
             TokenType::StartOfBlock,
             TokenType::EndOfBlock,
             TokenType::EndOfStatement,
-            TokenType::Logical,
             TokenType::Numeric,
             TokenType::Text,
+            TokenType::Logical,
             TokenType::Identifier,
             TokenType::Operator,
         ]
