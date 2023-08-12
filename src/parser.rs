@@ -85,6 +85,7 @@ impl SyntaxAnalizer {
                 let statement = self.parse_statement(&mut block);
                 block.statements.push(statement);
             }
+            self.next_token();
         } else {
             panic!("Missing opening block");
         }
