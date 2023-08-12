@@ -276,6 +276,15 @@ impl SyntaxAnalizer {
                 Ok(integer) => return Term::Integer(integer),
                 Err(_) => panic!("Parsing error"),
             }
+        } else if self.check_token(TokenType::Logical) {
+            let value = self
+                .get_token_value(self.current_token.clone())
+                .parse::<bool>();
+            self.next_token();
+            match value {
+                Ok(b) => return Term::Bool(b),
+                Err(_) => panic!("Parsing error"),
+            }
         } else if self.check_token(TokenType::Text) {
             let text = self.get_token_value(self.current_token.clone());
             self.next_token();

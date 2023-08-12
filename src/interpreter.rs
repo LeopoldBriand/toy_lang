@@ -21,6 +21,7 @@ pub fn interpret(ast: StatementBlock) {
                         match term {
                             Term::Integer(int) => println!("{}",int),
                             Term::String(string) => println!("{}",string),
+                            Term::Bool(b) => println!("{}",b),
                             Term::Identifier(identifier) => {
                                 let id = &var_table.get(&identifier.name).unwrap();
                                 match &id.value {
@@ -34,7 +35,8 @@ pub fn interpret(ast: StatementBlock) {
                         let value = interpret_expression(&var_table, expression);
                         match value {
                             Value::Integer(int) => println!("{}", int),
-                            Value::String(str) => println!("{}", str),                            
+                            Value::String(str) => println!("{}", str),
+                            Value::Bool(b) => println!("{}", b),                        
                         }
                     }
                 }
@@ -53,6 +55,7 @@ fn interpret_expression(context: &HashMap<String, Identifier>, expression: Expre
             match term {
                 Term::Integer(int) => return Value::Integer(int),
                 Term::String(string) => return Value::String(string),
+                Term::Bool(b) => return Value::Bool(b),
                 Term::Identifier(id) => {
                     let scoped_id = context.get(&id.name).unwrap().clone();
                     return scoped_id.value.unwrap()

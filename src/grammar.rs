@@ -50,6 +50,7 @@ pub struct Identifier {
 pub enum Value {
     Integer(i64),
     String(String),
+    Bool(bool),
 }
 #[derive(Debug, Clone)]
 pub enum Expression {
@@ -64,6 +65,7 @@ pub struct Operation {
 }
 #[derive(Debug, Clone)]
 pub enum Term {
+    Bool(bool),
     Integer(i64),
     String(String),
     Identifier(Identifier),
