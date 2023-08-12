@@ -6,6 +6,22 @@ pub fn interpret(ast: StatementBlock) {
     let mut var_table = ast.symbol_table;
     for statement in ast.statements {
         match statement {
+            Statement::If(if_statement) => {
+                let value = interpret_expression(&var_table, if_statement.expression);
+                match value {
+                    Value::Bool(b) => {
+                        if b {
+                            interpret(if_statement.then_statement_block)
+                        } else {
+                            match if_statement.else_statement_block {
+                                Some(block) => interpret(block),
+                                None => {}
+                            } 
+                        }
+                    },
+                    _ => panic!("If condition must return a boolean")
+                }
+            },
             Statement::Assignment(assignement) => {
                 let id_name = assignement.identifier.name;
                 let id = Identifier {
