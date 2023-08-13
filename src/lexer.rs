@@ -34,7 +34,7 @@ impl TokenType {
             TokenType::Text => "\'([^\']*)\'",
             TokenType::Logical => "(true|false)",
             TokenType::Identifier => "[a-zA-Z_]+[a-zA-Z0-9_]*",
-            TokenType::Operator => "(\\+|\\-|>|<|\\={1,2}|\\!|\\:{2})",
+            TokenType::Operator => "(\\+|\\-|&&|\\|\\||>|<|\\={1,2}|\\!|\\/|\\*|\\%)",
         }
     }
 

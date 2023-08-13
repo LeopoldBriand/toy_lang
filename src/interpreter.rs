@@ -70,12 +70,10 @@ fn interpret_expression(context: &HashMap<String, Identifier>, expression: Expre
                 Value::Bool(left_b) => {
                     if let Value::Bool(right_b) = right {
                         match op.operator {
-                            Operator::Equal => {
-                                return Value::Bool(left_b == right_b);
-                            },
-                            Operator::NotEqual => {
-                                return Value::Bool(left_b != right_b);
-                            }
+                            Operator::Equal => return Value::Bool(left_b == right_b),
+                            Operator::NotEqual => return Value::Bool(left_b != right_b),
+                            Operator::And => return Value::Bool(left_b && right_b),
+                            Operator::Or => return Value::Bool(left_b || right_b),
                             _ => panic!("Operation not permitted on boolean values")
                         }
                     } else {
@@ -95,11 +93,13 @@ fn interpret_expression(context: &HashMap<String, Identifier>, expression: Expre
                                 }
                                 return Value::Integer(left_i / right_i);
                             },
+                            Operator::Modulo => return Value::Integer(left_i % right_i),
                             Operator::Multiplication => return Value::Integer(left_i * right_i),
                             Operator::Inferior => Value::Bool(left_i < right_i),
                             Operator::InfOrEqual => Value::Bool(left_i <= right_i),
                             Operator::Superior => Value::Bool(left_i > right_i),
                             Operator::SupOrEqual => Value::Bool(left_i >= right_i),
+                            _ => panic!("Operation not permitted on integer values")
                         }
                     } else {
                         panic!("Cannot operand differents types");

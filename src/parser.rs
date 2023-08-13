@@ -249,12 +249,15 @@ impl SyntaxAnalizer {
             "-" => Operator::Minus,
             "*" => Operator::Multiplication,
             "/" => Operator::Division,
+            "%" => Operator::Modulo,
             "==" => Operator::Equal,
             "!=" => Operator::NotEqual,
             "<=" => Operator::InfOrEqual,
             ">=" => Operator::SupOrEqual,
             ">" => Operator::Superior,
             "<" => Operator::Inferior,
+            "&&" => Operator::And,
+            "||" => Operator::Or,
             _ => panic!("Unknown operator"),
         }
     }

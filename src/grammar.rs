@@ -30,6 +30,9 @@ pub struct AssignmentStatement {
 }
 #[derive(Debug, Clone)]
 pub enum Operator {
+    And,
+    Or,
+    Modulo,
     Plus,
     Minus,
     Division,
