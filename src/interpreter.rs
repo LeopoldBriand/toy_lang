@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::grammar::{StatementBlock, Statement, PrintStatement, Term, Expression, Value, Identifier};
+use crate::grammar::{StatementBlock, Statement, PrintStatement, Term, Expression, Value, Identifier, Operator};
 
 pub fn interpret(ast: StatementBlock) {
     let mut var_table = ast.symbol_table;
@@ -57,7 +57,6 @@ pub fn interpret(ast: StatementBlock) {
                     }
                 }
             }
-            _ => panic!("Unknown statement {:?}", statement)
         }
     }
 }
@@ -65,7 +64,60 @@ pub fn interpret(ast: StatementBlock) {
 fn interpret_expression(context: &HashMap<String, Identifier>, expression: Expression) -> Value {
     match expression {
         Expression::Operation(op) => {
-            todo!("operations")
+            let left = interpret_expression(context, op.left);
+            let right = interpret_expression(context, op.right);
+            match left {
+                Value::Bool(left_b) => {
+                    if let Value::Bool(right_b) = right {
+                        match op.operator {
+                            Operator::Equal => {
+                                return Value::Bool(left_b == right_b);
+                            },
+                            Operator::NotEqual => {
+                                return Value::Bool(left_b != right_b);
+                            }
+                            _ => panic!("Operation not permitted on boolean values")
+                        }
+                    } else {
+                        panic!("Cannot operand differents types");
+                    }
+                }
+                Value::Integer(left_i) => {
+                    if let Value::Integer(right_i) = right {
+                        match op.operator {
+                            Operator::Equal => return Value::Bool(left_i == right_i),
+                            Operator::NotEqual => return Value::Bool(left_i != right_i),
+                            Operator::Plus => return Value::Integer(left_i + right_i),
+                            Operator::Minus => return Value::Integer(left_i - right_i),
+                            Operator::Division => {
+                                if right_i == 0 {
+                                    panic!("Cannot divide by 0");
+                                }
+                                return Value::Integer(left_i / right_i);
+                            },
+                            Operator::Multiplication => return Value::Integer(left_i * right_i),
+                            Operator::Inferior => Value::Bool(left_i < right_i),
+                            Operator::InfOrEqual => Value::Bool(left_i <= right_i),
+                            Operator::Superior => Value::Bool(left_i > right_i),
+                            Operator::SupOrEqual => Value::Bool(left_i >= right_i),
+                        }
+                    } else {
+                        panic!("Cannot operand differents types");
+                    }
+                }
+                Value::String(left_s) => {
+                    if let Value::String(right_s) = right {
+                        match op.operator {
+                            Operator::Equal => return Value::Bool(left_s == right_s),
+                            Operator::NotEqual => return Value::Bool(left_s != right_s),
+                            Operator::Plus => return Value::String(left_s + &right_s),
+                            _ => panic!("Operation not permitted on string values")
+                        }
+                    } else {
+                        panic!("Cannot operand differents types");
+                    }
+                },
+            }
         },
         Expression::Term(term) => {
             match term {
