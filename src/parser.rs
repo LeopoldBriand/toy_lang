@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::errors::SyntaxError;
 use crate::grammar::{
     AssignmentStatement, Expression, Identifier, IfStatement, Operation, Operator, PrintStatement,
     Statement, StatementBlock, Term,
@@ -10,7 +11,8 @@ pub struct SyntaxAnalizer {
     pub ast: StatementBlock,
     current_token: Option<Token>,
     peek_token: Option<Token>,
-    position: usize,
+    token_pos: usize,
+    file_pos: (i32, i32),
 }
 impl SyntaxAnalizer {
     pub fn new(tokens: Vec<Token>) -> Self {
@@ -22,7 +24,8 @@ impl SyntaxAnalizer {
             },
             current_token: None,
             peek_token: None,
-            position: 1,
+            token_pos: 1,
+            file_pos: (1,1),
         };
         if tokens.len() > 2 {
             analizer.current_token = Some(tokens[0].clone());
@@ -32,8 +35,8 @@ impl SyntaxAnalizer {
         }
         analizer
     }
-    pub fn parse(&mut self) {
-        self.ast = self.parse_statement_block();
+    pub fn parse(&mut self) -> Result<StatementBlock, SyntaxError>{
+        self.parse_statement_block()
     }
     fn check_token(&mut self, token_type: TokenType) -> bool {
         match self.current_token.clone() {
@@ -66,15 +69,18 @@ impl SyntaxAnalizer {
         }
     }
     fn next_token(&mut self) {
-        self.position += 1;
+        self.token_pos += 1;
         self.current_token = self.peek_token.clone();
-        if self.position < self.tokens.len() {
-            self.peek_token = Some(self.tokens[self.position].clone());
+        if let Some(token) = self.current_token.clone() {
+            self.file_pos = token.pos;
+        }
+        if self.token_pos < self.tokens.len() {
+            self.peek_token = Some(self.tokens[self.token_pos].clone());
         } else {
             self.peek_token = None;
         }
     }
-    fn parse_statement_block(&mut self) -> StatementBlock {
+    fn parse_statement_block(&mut self) -> Result<StatementBlock, SyntaxError> {
         let mut block = StatementBlock {
             statements: vec![],
             symbol_table: HashMap::new(),
@@ -82,16 +88,18 @@ impl SyntaxAnalizer {
         if self.check_token(TokenType::StartOfBlock) {
             self.next_token();
             while !self.check_token(TokenType::EndOfBlock) {
-                let statement = self.parse_statement(&mut block);
-                block.statements.push(statement);
+                match self.parse_statement(&mut block){
+                    Ok(statement) => block.statements.push(statement),
+                    Err(error) => return Err(error),
+                }
             }
             self.next_token();
         } else {
-            panic!("Missing opening block");
+            return Err(self.get_error("Missing opening block"));
         }
-        return block;
+        return Ok(block);
     }
-    fn parse_statement(&mut self, block: &mut StatementBlock) -> Statement {
+    fn parse_statement(&mut self, block: &mut StatementBlock) -> Result<Statement, SyntaxError> {
         // print_statement ::= (expression) | string_literal
         if self.check_token_and_value(TokenType::Keyword, "print") {
             self.next_token();
@@ -107,11 +115,11 @@ impl SyntaxAnalizer {
                     self.next_token();
                     if self.check_token(TokenType::EndOfStatement) {
                         self.next_token();
-                        return Statement::Print(PrintStatement::Term(Term::String(
+                        return Ok(Statement::Print(PrintStatement::Term(Term::String(
                             self.get_token_value(text),
-                        )));
+                        ))));
                     } else {
-                        panic!("Missing end of statement")
+                        return Err(self.get_error("Missing end of statement"));
                     }
                 } else {
                     // It's an expression
@@ -121,16 +129,16 @@ impl SyntaxAnalizer {
                         self.next_token();
                         if self.check_token(TokenType::EndOfStatement) {
                             self.next_token();
-                            return Statement::Print(PrintStatement::Expression(expression));
+                            return Ok(Statement::Print(PrintStatement::Expression(expression)));
                         } else {
-                            panic!("Missing end of statement")
+                            return Err(self.get_error("Missing end of statement"));
                         }
                     } else {
-                        panic!("Missing closing bracket");
+                        return Err(self.get_error("Missing closing bracket"));
                     }
                 }
             } else {
-                panic!("Missing opening bracket");
+                return Err(self.get_error("Missing opening bracket"));
             }
         // if_statement ::= if (expression) statement_block else statement_block
         } else if self.check_token_and_value(TokenType::Keyword, "if") {
@@ -145,22 +153,30 @@ impl SyntaxAnalizer {
                 // Check for closing bracket
                 if self.check_token_and_value(TokenType::GroupDivider, ")") {
                     self.next_token();
-                    then_statement_block = self.parse_statement_block();
-                    if self.check_token_and_value(TokenType::Keyword, "else") {
-                        self.next_token();
-                        else_statement_block = Some(self.parse_statement_block());
+                    match self.parse_statement_block() {
+                        Ok(block) => {
+                            then_statement_block = block;
+                            if self.check_token_and_value(TokenType::Keyword, "else") {
+                                self.next_token();
+                                match self.parse_statement_block() {
+                                    Ok(block) => else_statement_block = Some(block),
+                                    Err(error) => return Err(error),
+                                }
+                            }
+                        },
+                        Err(error) => return Err(error),
                     }
                 } else {
-                    panic!("Missing closing bracket");
+                    return Err(self.get_error("Missing closing bracket"));
                 }
             } else {
-                panic!("Missing opening bracket");
+                return Err(self.get_error("Missing opening bracket"));
             }
-            return Statement::If(IfStatement {
+            return Ok(Statement::If(IfStatement {
                 expression,
                 then_statement_block,
                 else_statement_block,
-            });
+            }));
         // declaration_statement ::= var identifier = expression
         } else if self.check_token_and_value(TokenType::Keyword, "var") {
             self.next_token();
@@ -177,23 +193,23 @@ impl SyntaxAnalizer {
                         if self.check_token(TokenType::EndOfStatement) {
                             self.next_token();
                         } else {
-                            panic!("Missing end of statement")
+                            return Err(self.get_error("Missing end of statement"));
                         }
                     } else {
-                        panic!("Assignement without '=' sign");
+                        return Err(self.get_error("Assignement without '=' sign"));
                     }
                     block
                         .symbol_table
                         .insert(identifier_value, identifier.clone());
-                    return Statement::Assignment(AssignmentStatement {
+                    return Ok(Statement::Assignment(AssignmentStatement {
                         expression,
                         identifier,
-                    });
+                    }));
                 } else {
-                    panic!("Identifier {} already used", identifier_value)
+                    return Err(self.get_error(&format!("Identifier {} already used", identifier_value)));
                 }
             } else {
-                panic!("Identifier needed after var keyword");
+                return Err(self.get_error("Identifier needed after var keyword"));
             }
         // assignment_statement ::= identifier = expression
         } else if self.check_token(TokenType::Identifier) {
@@ -209,23 +225,23 @@ impl SyntaxAnalizer {
                     if self.check_token(TokenType::EndOfStatement) {
                         self.next_token();
                     } else {
-                        panic!("Missing end of statement")
+                        return Err(self.get_error("Missing end of statement"));
                     }
                 } else {
-                    panic!("Assignement without '=' sign");
+                    return Err(self.get_error("Assignement without '=' sign"));
                 }
-                return Statement::Assignment(AssignmentStatement {
+                return Ok(Statement::Assignment(AssignmentStatement {
                     expression,
                     identifier,
-                });
+                }));
             } else {
-                panic!("Identifier {} not declared", identifier_value)
+                return Err(self.get_error(&format!("Identifier {} not declared", identifier_value)))
             }
         }
-        panic!(
+        return Err(self.get_error(&format!(
             "Syntax Error: Statement cannot be matched: {:?}",
             self.current_token
-        )
+        )))
     }
     fn parse_expression(&mut self, block: &mut StatementBlock) -> Expression {
         if self.check_peek(TokenType::Operator) {
@@ -298,5 +314,8 @@ impl SyntaxAnalizer {
             "Syntax Error: Term cannot be matched: {:?}",
             self.current_token
         )
+    }
+    fn get_error(&mut self, message: &str) -> SyntaxError {
+        SyntaxError { line: self.file_pos.0, col: self.file_pos.1, message: message.to_owned()}
     }
 }

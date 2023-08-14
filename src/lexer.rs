@@ -1,8 +1,10 @@
 use regex::Regex;
-use std::error::Error;
+
+use crate::errors::LexicalError;
 
 #[derive(Clone, Debug)]
 pub struct Token {
+    pub pos: (i32, i32),
     pub token_type: TokenType,
     pub value: String,
 }
@@ -58,47 +60,59 @@ impl TokenType {
 #[derive(Debug)]
 pub struct LexicalParser {
     tokens: Vec<Token>,
-    source: String,
+    source: Vec<String>,
 }
 impl LexicalParser {
-    pub fn new(source: String) -> Self {
+    pub fn new(source: Vec<String>) -> Self {
         Self {
             tokens: vec![],
             source,
         }
     }
-    fn next_token(&mut self, position: usize) -> Result<usize, Box<dyn Error>> {
-        let next_token = &self.source[position..];
+    fn next_token(&mut self, current_line:String, line_position: usize, col_position: usize) -> Result<usize, String> {
+        let next_token = &current_line[col_position..];
 
         for token_type in TokenType::values().into_iter() {
-            let pattern = Regex::new(&format!("^{}", token_type.regex()))?;
-            let captures = pattern.captures(next_token);
-
-            if let Some(captures) = captures {
-                if !matches!(token_type, TokenType::Whitespace) {
-                    // group(1) is used to get text literal without double quotes
-                    let value = captures
-                        .get(1)
-                        .map_or_else(|| captures.get(0).unwrap().as_str(), |m| m.as_str());
-                    let token = Token {
-                        token_type,
-                        value: value.to_owned(),
-                    };
-                    self.tokens.push(token);
+            match Regex::new(&format!("^{}", token_type.regex())) {
+                Ok(pattern) => {
+                    let captures = pattern.captures(next_token);
+                    if let Some(captures) = captures {
+                        if !matches!(token_type, TokenType::Whitespace) {
+                            // group(1) is used to get text literal without double quotes
+                            let value = captures
+                                .get(1)
+                                .map_or_else(|| captures.get(0).unwrap().as_str(), |m| m.as_str());
+                            let token = Token {
+                                pos: (line_position as i32, col_position as i32),
+                                token_type,
+                                value: value.to_owned(),
+                            };
+                            self.tokens.push(token);
+                        }
+                        return Ok(captures.get(0).unwrap().as_str().len());
+                    }
                 }
-                return Ok(captures.get(0).unwrap().as_str().len());
+                Err(_) => return Err("Unknown Token".to_owned()),
             }
         }
 
         Err(format!("invalid expression: `{}`", next_token).into())
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Token>, Box<dyn Error>> {
-        let mut position: usize = 0;
-        while position < self.source.len() {
-            match self.next_token(position) {
-                Ok(inc) => position += inc,
-                Err(err) => return Err(err),
+    pub fn parse(&mut self) -> Result<Vec<Token>, LexicalError> {
+        for (pos, line) in self.source.clone().iter().enumerate() {
+            let mut col: usize = 0;
+            while col < line.len() {
+                match self.next_token(line.clone(), pos, col) {
+                    Ok(inc) => col += inc,
+                    Err(err) => {
+                        return Err(LexicalError {
+                            line: pos as i32,
+                            col: col as i32,
+                            message: err,
+                        })
+                    },
+                }
             }
         }
         Ok(self.tokens.clone())

@@ -1,8 +1,12 @@
-use std::fs;
+use std::{
+    fs::{File, metadata},
+    io::{prelude::*, BufReader},
+};
 mod grammar;
 mod lexer;
 mod parser;
 mod interpreter;
+mod errors;
 
 use clap::Parser;
 
@@ -19,15 +23,13 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
     let path = cli.path.unwrap();
-    let content: String;
-    match fs::metadata(&path) {
+    let content: Vec<String>;
+    match metadata(&path) {
         Ok(p) => {
             if p.is_dir() {
-                content = fs::read_to_string(format!("{path}/index.toy"))
-                    .expect("Compiler is not able to read the file");
+                content = lines_from_file(format!("{path}/index.toy"));
             } else {
-                content = fs::read_to_string(path)
-                    .expect("Compiler is not able to read the file");
+                content = lines_from_file(path);
             }
         }
         Err(_) => panic!("Error while accessing the file"),
@@ -36,15 +38,27 @@ fn main() {
     match lex.parse() {
         Ok(lexicon) => {
             let mut parser = parser::SyntaxAnalizer::new(lexicon);
-            parser.parse();
-            let result = parser.ast;
-            if cli.interpreter {
-                interpreter::interpret(result);
-            } else {
-                println!("{:?}", result);
+            match parser.parse() {
+                Ok(ast) => {
+                    if cli.interpreter {
+                        interpreter::interpret(ast);
+                    } else {
+                        println!("{:?}", ast);
+                    }
+                },
+                Err(error) => println!("{}", error.to_string()),
             }
+            
         }
-        Err(error) => panic!("Lexical error: {}", error.as_ref().to_string()),
+        Err(error) => println!("{}", error.to_string()),
     }
     
+}
+
+fn lines_from_file(filename: String) -> Vec<String> {
+    let file = File::open(filename.clone()).expect(&format!("Compiler is not able to read the file {}", filename));
+    let buf = BufReader::new(file);
+    buf.lines()
+        .map(|l| l.expect("Could not parse line"))
+        .collect()
 }
