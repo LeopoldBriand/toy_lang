@@ -8,7 +8,7 @@ pub struct LexicalError{
 
 impl fmt::Display for LexicalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Lexical error at l.{}, c.{}; {}", self.line, self.col, self.message)
+        write!(f, "Lexical error at l.{} , c.{}; {}", self.line + 1, self.col, self.message)
     }
 }
 
@@ -26,7 +26,7 @@ pub struct SyntaxError{
 
 impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Syntax error at l.{}, c.{}; {}", self.line, self.col, self.message)
+        write!(f, "Syntax error at l.{}, c.{}; {}", self.line + 1, self.col, self.message)
     }
 }
 
