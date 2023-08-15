@@ -89,7 +89,10 @@ impl LexicalParser {
                             };
                             self.tokens.push(token);
                         }
-                        return Ok(captures.get(0).unwrap().as_str().len());
+                        match captures.get(0) {
+                            Some(capture) => return Ok(capture.as_str().len()),
+                            None => return Err("Unknown Token".to_owned()),
+                        }
                     }
                 }
                 Err(_) => return Err("Unknown Token".to_owned()),

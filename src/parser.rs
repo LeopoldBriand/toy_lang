@@ -123,7 +123,11 @@ impl SyntaxAnalizer {
                     }
                 } else {
                     // It's an expression
-                    let expression = self.parse_expression(block);
+                    let expression: Expression;
+                    match self.parse_expression(block) {
+                        Ok(exp) => expression = exp,
+                        Err(error) => return Err(error),
+                    }
                     // Check for closing bracket
                     if self.check_token_and_value(TokenType::GroupDivider, ")") {
                         self.next_token();
@@ -149,7 +153,10 @@ impl SyntaxAnalizer {
             // Should start with brackets
             if self.check_token_and_value(TokenType::GroupDivider, "(") {
                 self.next_token();
-                expression = self.parse_expression(block);
+                match self.parse_expression(block){
+                    Ok(exp) => expression = exp,
+                    Err(error) => return Err(error),
+                }
                 // Check for closing bracket
                 if self.check_token_and_value(TokenType::GroupDivider, ")") {
                     self.next_token();
@@ -189,7 +196,10 @@ impl SyntaxAnalizer {
                     let expression: Expression;
                     if self.check_token_and_value(TokenType::Operator, "=") {
                         self.next_token();
-                        expression = self.parse_expression(block);
+                        match self.parse_expression(block) {
+                            Ok(exp) => expression = exp,
+                            Err(error) => return Err(error),
+                        }
                         if self.check_token(TokenType::EndOfStatement) {
                             self.next_token();
                         } else {
@@ -221,7 +231,10 @@ impl SyntaxAnalizer {
                 let expression: Expression;
                 if self.check_token_and_value(TokenType::Operator, "=") {
                     self.next_token();
-                    expression = self.parse_expression(block);
+                    match self.parse_expression(block) {
+                        Ok(exp) => expression = exp,
+                        Err(error) => return Err(error),
+                    }
                     if self.check_token(TokenType::EndOfStatement) {
                         self.next_token();
                     } else {
@@ -239,24 +252,36 @@ impl SyntaxAnalizer {
             }
         }
         return Err(self.get_error(&format!(
-            "Syntax Error: Statement cannot be matched: {:?}",
+            "Statement cannot be matched: {:?}",
             self.current_token
         )))
     }
-    fn parse_expression(&mut self, block: &mut StatementBlock) -> Expression {
+    fn parse_expression(&mut self, block: &mut StatementBlock) -> Result<Expression, SyntaxError> {
         if self.check_peek(TokenType::Operator) {
             let value = self.get_token_value(self.peek_token.clone());
             let operator: Operator = self.parse_operator(value);
-            let left_expression = self.parse_term(block);
+            let left_expression: Term;
+            match self.parse_term(block) {
+                Ok(term) => left_expression = term,
+                Err(error) => return Err(error),
+            }
             self.next_token();
-            let right_expresion = self.parse_expression(block);
-            return Expression::Operation(Box::new(Operation {
+            let right_expresion: Expression;
+            match self.parse_expression(block) {
+                Ok(exp) => right_expresion = exp,
+                Err(error) => return Err(error),
+            }
+            return Ok(Expression::Operation(Box::new(Operation {
                 left: Expression::Term(left_expression),
                 operator,
                 right: right_expresion,
-            }));
+            })));
         } else {
-            return Expression::Term(self.parse_term(block));
+            match self.parse_term(block) {
+                Ok(term) => return Ok(Expression::Term(term)),
+                Err(error) => return Err(error),
+            }
+            
         }
     }
     fn parse_operator(&mut self, value: String) -> Operator {
@@ -277,43 +302,41 @@ impl SyntaxAnalizer {
             _ => panic!("Unknown operator"),
         }
     }
-    fn parse_term(&mut self, block: &mut StatementBlock) -> Term {
+    fn parse_term(&mut self, block: &mut StatementBlock) -> Result<Term, SyntaxError> {
         if self.check_token(TokenType::Identifier) {
             let identifier_value = self.current_token.clone().unwrap().value;
             self.next_token();
             if block.symbol_table.contains_key(&identifier_value) {
                 let identifier = Identifier {name: identifier_value, value: None};
-                return Term::Identifier(identifier);
+                return Ok(Term::Identifier(identifier));
             } else {
-                panic!("Identifier {} not declared", identifier_value);
+                return Err(self.get_error(&format!("Identifier {} not declared", identifier_value)));
             }
         } else if self.check_token(TokenType::Numeric) {
-            let value = self
-                .get_token_value(self.current_token.clone())
-                .parse::<i64>();
+            let token = self.get_token_value(self.current_token.clone());
+            let value = token.parse::<i64>();
             self.next_token();
             match value {
-                Ok(integer) => return Term::Integer(integer),
-                Err(_) => panic!("Parsing error"),
+                Ok(integer) => return Ok(Term::Integer(integer)),
+                Err(_) => return Err(self.get_error(&format!("Parsing error, {} is not numeric", token))),
             }
         } else if self.check_token(TokenType::Logical) {
-            let value = self
-                .get_token_value(self.current_token.clone())
-                .parse::<bool>();
+            let token = self.get_token_value(self.current_token.clone());
+            let value = token.parse::<bool>();
             self.next_token();
             match value {
-                Ok(b) => return Term::Bool(b),
-                Err(_) => panic!("Parsing error"),
+                Ok(b) => return Ok(Term::Bool(b)),
+                Err(_) => return Err(self.get_error(&format!("Parsing error, {} is not boolean", token))),
             }
         } else if self.check_token(TokenType::Text) {
             let text = self.get_token_value(self.current_token.clone());
             self.next_token();
-            return Term::String(text);
+            return Ok(Term::String(text));
         }
-        panic!(
-            "Syntax Error: Term cannot be matched: {:?}",
+        return Err(self.get_error(&format!(
+            "Term cannot be matched: {:?}",
             self.current_token
-        )
+        )))
     }
     fn get_error(&mut self, message: &str) -> SyntaxError {
         SyntaxError { line: self.file_pos.0, col: self.file_pos.1, message: message.to_owned()}
